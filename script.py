@@ -26,8 +26,8 @@ def clone_repo(repo_url, clone_dir):
 # Function to detect the language and build/run commands
 def detect_language(repo_dir):
     if os.path.isfile(os.path.join(repo_dir, 'pom.xml')):
-        # Maven project
-        return 'Java', 'mvn clean install', 'mvn test'
+        # Maven project, compile using 'mvn compile' first, then run tests with 'mvn test'
+        return 'Java', 'mvn compile', 'mvn test'
     for root, dirs, files in os.walk(repo_dir):
         if any(file.endswith('.java') for file in files):
             return 'Java', '', 'java -cp . Main'
@@ -63,6 +63,12 @@ def run_code(repo_dir, run_command):
 def log_results_to_excel(results, output_file):
     df = pd.DataFrame(results)
     df.to_excel(output_file, index=False)
+
+# Function to read repository URLs from a text file
+def read_repos_from_file(file_path):
+    with open(file_path, 'r') as file:
+        repos = [line.strip() for line in file.readlines() if line.strip()]
+    return repos
 
 # Main function to process repositories
 def process_repos(repo_list, output_file):
@@ -108,10 +114,12 @@ def process_repos(repo_list, output_file):
             continue
 
         # Compilation step (if needed)
+        print(f"Compiling {repo_url}...")
         compile_success, compile_msg = compile_repo(clone_dir, compile_command)
 
         # Run the code if compilation (or no compilation) is successful
         if compile_success:
+            print(f"Running {repo_url}...")
             run_success, run_msg = run_code(clone_dir, run_command)
         else:
             run_success = False
@@ -137,16 +145,12 @@ def process_repos(repo_list, output_file):
     log_results_to_excel(results, output_file)
     print(f"Results logged to {output_file}")
 
-# List of repositories to process
-repos = [
-    'https://github.com/corecomtechacademy/loan-app-auto1',
-    'https://github.com/corecomtechacademy/loan-app-auto2',
-    'https://github.com/corecomtechacademy/loan-app-auto3',
-    'https://github.com/corecomtechacademy/loan-app-auto4'
-]
+# Path to the text file containing the list of repositories
+repo_file_path = 'repos.txt'
 
 # Output Excel file
 output_excel = 'results.xlsx'
 
-# Process the repositories
+# Read repositories from file and process them
+repos = read_repos_from_file(repo_file_path)
 process_repos(repos, output_excel)
