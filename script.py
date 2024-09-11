@@ -67,7 +67,7 @@ def compile_repo(repo_dir, compile_command):
             return False, f"Compilation failed: {e}"
     return True, "No compilation needed"
 
-# Function to run the Java main method
+# Function to compile and run the Java main method
 def run_java_main(repo_dir, main_class_path):
     try:
         # Convert the main class path into a format for running with Java
@@ -95,15 +95,22 @@ def run_java_main(repo_dir, main_class_path):
         target_dir = os.path.join(repo_dir, 'target')  # Output directory for .class files
         os.makedirs(target_dir, exist_ok=True)  # Create target directory if it doesn't exist
         compile_command = f"javac -d {target_dir} " + " ".join(java_files)
-        subprocess.check_call(compile_command, shell=True, cwd=repo_dir)
+        
+        # Check for compilation success before running
+        try:
+            subprocess.check_call(compile_command, shell=True, cwd=repo_dir)
+            print(f"Compilation successful for {main_class_path}.")
+        except subprocess.CalledProcessError as compile_error:
+            return False, f"Compilation failed for {main_class_path}: {compile_error}", False, f"Compilation failed so run was skipped"
 
-        # Run the compiled Java class using the target directory as the classpath
+        # If compilation was successful, run the compiled Java class
         run_command = f"java -cp {target_dir} {full_class_name}"
         subprocess.check_call(run_command, shell=True, cwd=repo_dir)
 
-        return True, "Main method ran successfully"
-    except subprocess.CalledProcessError as e:
-        return False, f"Failed to run the main method: {e}"
+        return True, "Compiled successfully", True, "Main method ran successfully" 
+    except subprocess.CalledProcessError as run_error:
+        return True, "Compiled successfully", False, f"Failed to run the main method: {run_error}"
+
 
 # Function to run the code
 def run_code(repo_dir, run_command):
@@ -161,12 +168,15 @@ def process_repos(repo_list, output_file):
             # Try to run the Java main method first
             print(f"Searching for Java main method in {repo_url}...")
             main_class = find_main_class(clone_dir)
+
             if main_class:
-                print(f"Found main method in {main_class}, trying to run it...")
-                run_success, run_msg = run_java_main(clone_dir, main_class)
+                print(f"Found main method in {main_class}, trying to compile and run it...")
+                compile_success, compile_msg, run_success, run_msg = run_java_main(clone_dir, main_class)
             else:
                 run_success = False
                 run_msg = "No main method found"
+
+
 
             # If the main method wasn't found or failed, compile and run normally
             if not main_class or not run_success:
