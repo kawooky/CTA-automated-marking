@@ -84,17 +84,23 @@ def run_java_main(repo_dir, main_class_path):
         else:
             full_class_name = class_name
 
-        # Collect all .java files in the source directory
+        # Collect all .java files in the source directory and not in test
         java_files = []
         for root, _, files in os.walk(repo_dir):
+            # Skip directories that are under src/test
+            if os.path.commonpath([root, os.path.join(repo_dir, 'src', 'test')]) == os.path.join(repo_dir, 'src', 'test'):
+                continue
             for file in files:
                 if file.endswith('.java'):
                     java_files.append(os.path.join(root, file))
+
 
         # Compile all .java files
         target_dir = os.path.join(repo_dir, 'target')  # Output directory for .class files
         os.makedirs(target_dir, exist_ok=True)  # Create target directory if it doesn't exist
         compile_command = f"javac -d {target_dir} " + " ".join(java_files)
+        print(compile_command)
+        print("compile command^^^^^")
         
         # Check for compilation success before running
         try:
@@ -111,6 +117,49 @@ def run_java_main(repo_dir, main_class_path):
     except subprocess.CalledProcessError as run_error:
         return True, "Compiled successfully", False, f"Failed to run the main method: {run_error}"
 
+# Function to run tests based on the detected language
+def run_tests(repo_dir, language):
+    try:
+        if language == 'Java' and os.path.isfile(os.path.join(repo_dir, 'pom.xml')):
+            # Run Maven tests
+            test_command = 'mvn test'
+            result = subprocess.run(test_command, shell=True, cwd=repo_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            output = result.stdout + result.stderr
+            if 'BUILD SUCCESS' in output:
+                # Extract test summary
+                match = re.search(r'Tests run: (\d+), Failures: (\d+)', output)
+                if match:
+                    total_tests = int(match.group(1))
+                    failed_tests = int(match.group(2))
+                    passed_tests = total_tests - failed_tests
+                    test_summary = f"{passed_tests} out of {total_tests} tests passed"
+                    return True, "Tests ran successfully", test_summary
+                else:
+                    return True, "Tests ran successfully", "No test summary found"
+            else:
+                return False, "Tests failed", "N/A"
+        elif language == 'Python':
+            # Run Python unittests
+            test_command = 'python -m unittest discover'
+            result = subprocess.run(test_command, shell=True, cwd=repo_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            output = result.stdout + result.stderr
+            match = re.search(r'Ran (\d+) test[s] in', output)
+            if match:
+                total_tests = int(match.group(1))
+                failures = output.count('FAILED')
+                passed_tests = total_tests - failures
+                test_summary = f"{passed_tests} out of {total_tests} tests passed"
+                if 'OK' in output:
+                    return True, "Tests ran successfully", test_summary
+                else:
+                    return False, "Some tests failed", test_summary
+            else:
+                return False, "Test output not recognized", "N/A"
+        # Add logic for other languages (e.g., JavaScript) as needed
+        else:
+            return True, "No tests available", "N/A"
+    except subprocess.CalledProcessError as e:
+        return False, f"Test execution failed: {e}", "N/A"
 
 # Function to run the code
 def run_code(repo_dir, run_command):
@@ -152,6 +201,8 @@ def process_repos(repo_list, output_file):
                 'Language': 'Unknown',
                 'Compilation Status': 'N/A',
                 'Run Status': 'N/A',
+                'Test Status': 'N/A',
+                'Test Summary': 'N/A',
                 'Comments': clone_msg
             })
             continue
@@ -160,12 +211,16 @@ def process_repos(repo_list, output_file):
         language, compile_command, run_command = detect_language(clone_dir)
         print(f"Detected language: {language}")
 
-        # Initialize compile_success to avoid unbound local variable error
+        # Initialize variables for logging
         compile_success = True
         compile_msg = 'Skipped compilation'
+        run_success = False
+        run_msg = "N/A"
+        test_success = False
+        test_msg = "N/A"
+        test_summary = "N/A"
 
         if language == 'Java':
-            # Try to run the Java main method first
             print(f"Searching for Java main method in {repo_url}...")
             main_class = find_main_class(clone_dir)
 
@@ -176,20 +231,24 @@ def process_repos(repo_list, output_file):
                 run_success = False
                 run_msg = "No main method found"
 
-
-
             # If the main method wasn't found or failed, compile and run normally
             if not main_class or not run_success:
                 print(f"Compiling {repo_url}...")
                 compile_success, compile_msg = compile_repo(clone_dir, compile_command)
-
-                # Run the code if compilation (or no compilation) is successful
                 if compile_success:
                     print(f"Running {repo_url}...")
                     run_success, run_msg = run_code(clone_dir, run_command)
-                else:
-                    run_success = False
-                    run_msg = "Skipped running due to compilation failure"
+
+            # Run tests for Java project
+            test_success, test_msg, test_summary = run_tests(clone_dir, language)
+
+        elif language == 'Python':
+            # Run Python code
+            compile_success = True  # No compilation needed for Python
+            run_success, run_msg = run_code(clone_dir, run_command)
+
+            # Run Python tests
+            test_success, test_msg, test_summary = run_tests(clone_dir, language)
 
         elif language == 'Unknown':
             results.append({
@@ -198,9 +257,10 @@ def process_repos(repo_list, output_file):
                 'Language': 'Unknown',
                 'Compilation Status': 'N/A',
                 'Run Status': 'N/A',
+                'Test Status': 'N/A',
+                'Test Summary': 'N/A',
                 'Comments': 'Could not detect the language or no recognized build system'
             })
-            # Clean up the cloned directory with error handling
             try:
                 shutil.rmtree(clone_dir, onerror=handle_remove_readonly)
             except Exception as e:
@@ -214,7 +274,9 @@ def process_repos(repo_list, output_file):
             'Language': language,
             'Compilation Status': 'Success' if compile_success else 'Failed',
             'Run Status': 'Success' if run_success else 'Failed',
-            'Comments': f"{compile_msg}; {run_msg}"
+            'Test Status': 'Success' if test_success else 'Failed',
+            'Test Summary': test_summary,
+            'Comments': f"{compile_msg}; {run_msg}; {test_msg}"
         })
 
         # Clean up the cloned directory with error handling
