@@ -16,11 +16,12 @@ def handle_remove_readonly(func, path, exc):
     else:
         raise
 
-# Function to clone a repository
+# Function to clone a repository into a specified folder
 def clone_repo(repo_url, clone_dir):
     try:
+        # Cloning into the specified folder name
         Repo.clone_from(repo_url, clone_dir)
-        return True, "Cloned successfully"
+        return True, f"Cloned {repo_url} into {clone_dir} successfully"
     except Exception as e:
         return False, str(e)
 
@@ -94,18 +95,14 @@ def run_java_main(repo_dir, main_class_path):
                 if file.endswith('.java'):
                     java_files.append(os.path.join(root, file))
 
-
         # Compile all .java files
         target_dir = os.path.join(repo_dir, 'target')  # Output directory for .class files
         os.makedirs(target_dir, exist_ok=True)  # Create target directory if it doesn't exist
         compile_command = f"javac -d {target_dir} " + " ".join(java_files)
-        print(compile_command)
-        print("compile command^^^^^")
         
         # Check for compilation success before running
         try:
             subprocess.check_call(compile_command, shell=True, cwd=repo_dir)
-            print(f"Compilation successful for {main_class_path}.")
         except subprocess.CalledProcessError as compile_error:
             return False, f"Compilation failed for {main_class_path}: {compile_error}", False, f"Compilation failed so run was skipped"
 
@@ -176,27 +173,33 @@ def log_results_to_excel(results, output_file):
     df = pd.DataFrame(results)
     df.to_excel(output_file, index=False)
 
-# Function to read repository URLs from a text file
-def read_repos_from_file(file_path):
+# Function to read repository URLs and folder names from a text file
+def get_repos_with_names(file_path='repos.txt'):
+    repos_with_names = {}
     with open(file_path, 'r') as file:
-        repos = [line.strip() for line in file.readlines() if line.strip()]
-    return repos
+        for line in file:
+            line = line.strip()
+            if line:
+                repo_url, folder_name = line.split()
+                repos_with_names[repo_url] = folder_name
+    return repos_with_names
 
 # Main function to process repositories
-def process_repos(repo_list, output_file):
+def process_repos(output_file):
+    repos_with_names = get_repos_with_names()  # Read repo URLs and folder names from file
     results = []
 
-    for repo_url in repo_list:
-        repo_name = repo_url.split('/')[-1].replace('.git', '')
-        clone_dir = os.path.join(os.getcwd(), repo_name)
+    for repo_url, folder_name in repos_with_names.items():
+        clone_dir = os.path.join(os.getcwd(), folder_name)  # Clone into the specified folder name
 
-        # Clone the repository
-        print(f"Cloning {repo_url}...")
+        # Clone the repository into the desired folder
+        print(f"Cloning {repo_url} into {folder_name}...")
         clone_success, clone_msg = clone_repo(repo_url, clone_dir)
 
         if not clone_success:
             results.append({
                 'Repository': repo_url,
+                'Folder Name': folder_name,
                 'Clone Status': 'Failed',
                 'Language': 'Unknown',
                 'Compilation Status': 'N/A',
@@ -207,94 +210,46 @@ def process_repos(repo_list, output_file):
             })
             continue
 
-        # Detect the programming language and build/run commands
+        # Detect the programming language
         language, compile_command, run_command = detect_language(clone_dir)
-        print(f"Detected language: {language}")
 
-        # Initialize variables for logging
-        compile_success = True
-        compile_msg = 'Skipped compilation'
-        run_success = False
-        run_msg = "N/A"
-        test_success = False
-        test_msg = "N/A"
-        test_summary = "N/A"
-
+        # Compile the code (if applicable)
         if language == 'Java':
-            print(f"Searching for Java main method in {repo_url}...")
-            main_class = find_main_class(clone_dir)
-
-            if main_class:
-                print(f"Found main method in {main_class}, trying to compile and run it...")
-                compile_success, compile_msg, run_success, run_msg = run_java_main(clone_dir, main_class)
+            main_class_path = find_main_class(clone_dir)
+            if main_class_path:
+                compile_success, compile_msg, run_success, run_msg = run_java_main(clone_dir, main_class_path)
             else:
-                run_success = False
-                run_msg = "No main method found"
-
-            # If the main method wasn't found or failed, compile and run normally
-            if not main_class or not run_success:
-                print(f"Compiling {repo_url}...")
                 compile_success, compile_msg = compile_repo(clone_dir, compile_command)
-                if compile_success:
-                    print(f"Running {repo_url}...")
-                    run_success, run_msg = run_code(clone_dir, run_command)
-
-            # Run tests for Java project
-            test_success, test_msg, test_summary = run_tests(clone_dir, language)
-
-        elif language == 'Python':
-            # Run Python code
-            compile_success = True  # No compilation needed for Python
+                run_success, run_msg = True, "Main method not found, so no run attempted"
+        else:
+            compile_success, compile_msg = compile_repo(clone_dir, compile_command)
             run_success, run_msg = run_code(clone_dir, run_command)
 
-            # Run Python tests
-            test_success, test_msg, test_summary = run_tests(clone_dir, language)
+        # Run tests (if applicable)
+        test_success, test_msg, test_summary = run_tests(clone_dir, language)
 
-        elif language == 'Unknown':
-            results.append({
-                'Repository': repo_url,
-                'Clone Status': 'Success',
-                'Language': 'Unknown',
-                'Compilation Status': 'N/A',
-                'Run Status': 'N/A',
-                'Test Status': 'N/A',
-                'Test Summary': 'N/A',
-                'Comments': 'Could not detect the language or no recognized build system'
-            })
-            try:
-                shutil.rmtree(clone_dir, onerror=handle_remove_readonly)
-            except Exception as e:
-                print(f"Error removing directory: {e}")
-            continue
-
-        # Append the result
+        # Log the results for this repository
         results.append({
             'Repository': repo_url,
+            'Folder Name': folder_name,
             'Clone Status': 'Success',
             'Language': language,
-            'Compilation Status': 'Success' if compile_success else 'Failed',
-            'Run Status': 'Success' if run_success else 'Failed',
-            'Test Status': 'Success' if test_success else 'Failed',
+            'Compilation Status': compile_msg,
+            'Run Status': run_msg,
+            'Test Status': test_msg,
             'Test Summary': test_summary,
-            'Comments': f"{compile_msg}; {run_msg}; {test_msg}"
+            'Comments': 'None'
         })
 
-        # Clean up the cloned directory with error handling
-        try:
-            shutil.rmtree(clone_dir, onerror=handle_remove_readonly)
-        except Exception as e:
-            print(f"Error removing directory: {e}")
+        # Clean up cloned repository folder
+        # try:
+        #     shutil.rmtree(clone_dir, onerror=handle_remove_readonly)
+        # except Exception as cleanup_error:
+        #     print(f"Error during cleanup: {cleanup_error}")
 
-    # Write the results to an Excel file
+    # Log all results to an Excel file
     log_results_to_excel(results, output_file)
-    print(f"Results logged to {output_file}")
 
-# Path to the text file containing the list of repositories
-repo_file_path = 'repos.txt'
-
-# Output Excel file
-output_excel = 'results.xlsx'
-
-# Read repositories from file and process them
-repos = read_repos_from_file(repo_file_path)
-process_repos(repos, output_excel)
+# Example usage
+output_file = 'repo_processing_results.xlsx'
+process_repos(output_file)
