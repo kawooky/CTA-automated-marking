@@ -24,9 +24,6 @@ def validate_html(html_file):
         return False, f"Failed to validate HTML: {response.status_code}"
 
 
-import requests
-
-import requests
 
 def validate_css(css_file):
     """Validates CSS using the W3C CSS Validator API."""
