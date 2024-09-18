@@ -38,13 +38,14 @@ def process_repos(output_file):
             results.append({
                 'Repository': repo_url,
                 'Folder Name': folder_name,
-                'Clone Status': 'Failed',
+                'Clone Status': f'Failed: {clone_msg}',
                 'Language': 'Unknown',
                 'Compilation Status': 'N/A',
                 'Run Status': 'N/A',
                 'Test Status': 'N/A',
                 'Test Summary': 'N/A',
-                'Comments': clone_msg
+                'HTML Validation Summary': 'N/A',
+                'CSS Validation Summary': 'N/A',
             })
             continue
 
@@ -62,7 +63,7 @@ def process_repos(output_file):
                 run_success, run_msg = True, "Main method not found, so no run attempted"
         elif language == 'HTML/CSS':
             compile_success, compile_msg = True, "No compilation needed"
-            run_success, run_msg = run_code(clone_dir, run_command, language)  # Assuming run_code does not need the language parameter
+            run_msg, html_validation_msg, css_validation_msg = run_code(clone_dir, run_command, language)  # Assuming run_code does not need the language parameter
         else:
             compile_success, compile_msg = compile_repo(clone_dir, compile_command)
             run_success, run_msg = run_code(clone_dir, run_command, language)
@@ -81,7 +82,8 @@ def process_repos(output_file):
             'Run Status': run_msg,
             'Test Status': test_msg,
             'Test Summary': test_summary,
-            'Comments': 'None'
+            'HTML Validation Summary': html_validation_msg if language == 'HTML/CSS' else 'N/A',
+            'CSS Validation Summary': css_validation_msg if language == 'HTML/CSS' else 'N/A',
         })
 
     # Log all results to an Excel file

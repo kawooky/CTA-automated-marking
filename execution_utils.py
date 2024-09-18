@@ -23,25 +23,59 @@ def validate_html(html_file):
     else:
         return False, f"Failed to validate HTML: {response.status_code}"
 
+
+import requests
+
+import requests
+
 def validate_css(css_file):
     """Validates CSS using the W3C CSS Validator API."""
+    
     with open(css_file, 'r', encoding='utf-8') as file:
         css_content = file.read()
 
-    response = requests.post(
-        'https://jigsaw.w3.org/css-validator/validator',
-        params={'profile': 'css3', 'output': 'json'},
-        headers={'Content-Type': 'text/css'},
-        data=css_content
-    )
+    try:
+        # Prepare parameters for the API call
+        params = {
+            'output': 'json',        # Output format, you can also use 'text', 'html', 'soap12'
+            'text': css_content      # Pass the raw CSS content to be validated
+        }
 
-    if response.status_code == 200:
-        result = response.json()
-        if 'cssvalidation' in result and result['cssvalidation']['errors']:
-            return False, f"CSS validation issues found: {result['cssvalidation']['errors']}"
-        return True, "CSS validation passed successfully"
-    else:
-        return False, f"Failed to validate CSS: {response.status_code}"
+        # Send the request to the validator
+        response = requests.get(
+            'https://jigsaw.w3.org/css-validator/validator',
+            params=params,
+            headers={'Content-Type': 'text/css'},
+        )
+        
+        
+        # Check response status
+        if response.status_code == 200:
+            result = response.json()
+            
+            # Check for errors in the validation result
+            if 'cssvalidation' in result and result['cssvalidation'].get('errors', []):
+                errors = result['cssvalidation']['errors']
+                
+                # Extract only the 'message' from each error
+                error_messages = [error['message'] for error in errors]
+                return False, f"CSS validation issues found: {error_messages}"
+            
+            return True, "CSS validation passed successfully"
+        else:
+            # If the status code is not 200, print the error details
+            print(f"Failed to validate CSS: {response.status_code}, {response.text}")
+            return False, f"Failed to validate CSS: {response.status_code}, {response.text}"
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False, f"An error occurred: {e}"
+
+
+
+
+
+
 
 def run_code(repo_dir, run_command, language):
     if language == 'HTML/CSS':
@@ -49,27 +83,32 @@ def run_code(repo_dir, run_command, language):
         html_file = os.path.join(repo_dir, 'index.html')  # or another common entry file
         css_file = os.path.join(repo_dir, 'styles.css')  # Assuming 'styles.css' is the CSS file
 
+
         # Validate HTML
         if os.path.isfile(html_file):
-            validation_result, message = validate_html(html_file)
-            if not validation_result:
-                return False, message  # Return early if HTML validation fails
+            html_validation_status, html_validation_msg = validate_html(html_file)
 
             try:
                 webbrowser.open(f'file:///{html_file}')
+                run_msg = "Opened HTML successfully in browser"
             except Exception as e:
-                return False, f"Failed to open HTML file: {e}"
-        else:
-            return False, "No HTML file found to open"
+                run_msg = f"Failed to open HTML file: {e}"
+        else: 
+            html_validation_status, html_validation_msg = False, "No HTML file found"
 
-        # Validate CSS (optional if CSS file is present)
         if os.path.isfile(css_file):
-            validation_result, message = validate_css(css_file)
-            if not validation_result:
-                return False, message  # Return early if CSS validation fails
+            css_validation_status, css_validation_msg = validate_css(css_file)
+        else:
+            css_validation_status, css_validation_msg = "N/A", "No CSS file found"
 
-        return True, "Opened HTML file in the browser and validation passed"
+
+        return run_msg, html_validation_msg, css_validation_msg
+
     
+
+
+
+
     # For other languages, execute the run command if provided
     if run_command and run_command != 'N/A':
         try:
