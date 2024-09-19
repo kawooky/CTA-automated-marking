@@ -14,9 +14,16 @@ def validate_html(html_file):
         data=html_content
     )
 
+    # Debugging: Print the response details
+
+    print(f"{os.path.basename(html_file)} Response text: {response.text}")
+
     if response.status_code == 200:
         result = response.json()
-        errors = [message['message'] for message in result.get('messages', []) if message['type'] == 'error']
+        errors = [
+            f"Line {message.get('lastLine', 'N/A')}, Column {message.get('lastColumn', 'N/A')}: {message['message']}"
+            for message in result.get('messages', []) if message['type'] == 'error'
+        ]        
         if errors:
             return False, f"HTML validation issues found: {errors}"
         return True, "HTML validation passed successfully"
@@ -74,34 +81,40 @@ def validate_css(css_file):
 
 
 
+
+
 def run_code(repo_dir, run_command, language):
     if language == 'HTML/CSS':
-        # Open the index.html file (or the main HTML file) in the default web browser
-        html_file = os.path.join(repo_dir, 'index.html')  # or another common entry file
-        css_file = os.path.join(repo_dir, 'styles.css')  # Assuming 'styles.css' is the CSS file
+        # Lists to store validation results
+        html_results = []
+        css_results = []
 
+        # Traverse the repository directory to find all HTML and CSS files
+        for root, dirs, files in os.walk(repo_dir):
+            for file in files:
+                if file.endswith(".html"):
+                    html_file = os.path.join(root, file)
 
-        # Validate HTML
-        if os.path.isfile(html_file):
-            html_validation_status, html_validation_msg = validate_html(html_file)
+                    # Validate HTML
+                    html_validation_status, html_validation_msg = validate_html(html_file)
+                    html_results.append(f"{file} {html_validation_msg}")
 
-            try:
-                webbrowser.open(f'file:///{html_file}')
-                run_msg = "Opened HTML successfully in browser"
-            except Exception as e:
-                run_msg = f"Failed to open HTML file: {e}"
-        else: 
-            html_validation_status, html_validation_msg = False, "No HTML file found"
+                    # Try opening the HTML file in the browser
+                    try:
+                        webbrowser.open(f'file:///{html_file}')
+                        run_msg = f"Opened {file} successfully in browser"
+                    except Exception as e:
+                        run_msg = f"Failed to open {file}: {e}"
+                    print(run_msg)
 
-        if os.path.isfile(css_file):
-            css_validation_status, css_validation_msg = validate_css(css_file)
-        else:
-            css_validation_status, css_validation_msg = "N/A", "No CSS file found"
+                elif file.endswith(".css"):
+                    css_file = os.path.join(root, file)
 
+                    # Validate CSS
+                    css_validation_status, css_validation_msg = validate_css(css_file)
+                    css_results.append(f"{file} {css_validation_msg}")
 
-        return run_msg, html_validation_msg, css_validation_msg
-
-    
+        return run_msg, html_results, css_results    
 
 
 
