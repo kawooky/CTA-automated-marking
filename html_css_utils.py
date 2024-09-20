@@ -1,6 +1,5 @@
 import os
 import webbrowser
-import subprocess
 import requests
 
 def validate_html(html_file):

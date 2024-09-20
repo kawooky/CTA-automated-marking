@@ -1,5 +1,4 @@
-pandas
-GitPython
-openpyxl
-requests
 sqlparse
+pandas
+gitpython
+requests
