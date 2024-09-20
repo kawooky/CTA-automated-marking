@@ -4,16 +4,15 @@ import re
 # Function to detect the language and build/run commands
 def detect_language(repo_dir):
     if os.path.isfile(os.path.join(repo_dir, 'pom.xml')):
-        # Maven project, compile using 'mvn compile' first, then run tests with 'mvn test'
-        return 'Java', 'mvn compile', 'mvn test'
+        return 'Java-Maven'
     for root, dirs, files in os.walk(repo_dir):
         if any(file.endswith('.java') for file in files):
-            return 'Java', '', 'java -cp . Main'
+            return 'Java'
         elif any(file.endswith('.html') or file.endswith('.css') for file in files):
-            return 'HTML/CSS', '', 'N/A'
+            return 'HTML/CSS'
         elif any(file.endswith('.sql') for file in files):
-            return 'SQL', '', 'N/A'  
-    return 'Unknown', '', ''
+            return 'SQL'
+    return 'Unknown'
 
 # Function to find the main class in Java files
 def find_main_class(repo_dir):
