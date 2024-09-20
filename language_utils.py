@@ -9,12 +9,10 @@ def detect_language(repo_dir):
     for root, dirs, files in os.walk(repo_dir):
         if any(file.endswith('.java') for file in files):
             return 'Java', '', 'java -cp . Main'
-        elif any(file.endswith('.py') for file in files):
-            return 'Python', '', 'python main.py'
         elif any(file.endswith('.html') or file.endswith('.css') for file in files):
             return 'HTML/CSS', '', 'N/A'
-        elif any(file.endswith('.js') for file in files):
-            return 'JavaScript', '', 'node main.js'
+        elif any(file.endswith('.sql') for file in files):
+            return 'SQL', '', 'N/A'  
     return 'Unknown', '', ''
 
 # Function to find the main class in Java files

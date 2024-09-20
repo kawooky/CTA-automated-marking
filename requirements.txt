@@ -2,3 +2,4 @@ pandas
 GitPython
 openpyxl
 requests
+sqlparse
