@@ -21,20 +21,26 @@ def clone_or_pull_repo(repo_url, clone_dir):
                 repo = Repo(clone_dir)
                 origin = repo.remotes.origin
                 origin.pull()  # Pull the latest changes
+                print(f"Pulled latest changes in {clone_dir} from {repo_url}")
                 return True, f"Pulled latest changes in {clone_dir} from {repo_url}"
             except Exception as e:
+                print(f"Failed to pull updates in {clone_dir}: {str(e)}")
                 return False, f"Failed to pull updates in {clone_dir}: {str(e)}"
         else:
             # Directory exists but is empty; clone the repository
             try:
                 Repo.clone_from(repo_url, clone_dir)
+                print(f"Cloned {repo_url} into {clone_dir} successfully")
                 return True, f"Cloned {repo_url} into {clone_dir} successfully"
             except Exception as e:
+                print(str(e))
                 return False, str(e)
     else:
         # Directory does not exist; clone the repository
         try:
             Repo.clone_from(repo_url, clone_dir)
+            print(f"Cloned {repo_url} into {clone_dir} successfully")
             return True, f"Cloned {repo_url} into {clone_dir} successfully"
         except Exception as e:
+            print(str(e))
             return False, str(e)
