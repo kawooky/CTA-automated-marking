@@ -1,10 +1,18 @@
 import os
+import time
 from language_utils import detect_language
 from java_utils import java_process
 from clone_utils import clone_or_pull_repo
 from logging_utils import log_results_to_excel
 from html_css_utils import html_css_proccess
 from sql_utils import find_and_check_sql_files
+
+# Create a new directory for each run
+def create_run_directory(base_dir='cloned_repos'):
+    timestamp = time.strftime('%Y%m%d-%H%M%S')  # Create a timestamp
+    run_dir = os.path.join(base_dir, timestamp)  # Combine base dir and timestamp
+    os.makedirs(run_dir, exist_ok=True)  # Create the directory if it doesn't exist
+    return run_dir
 
 def get_repos_with_names(file_path='repos.txt'):
     repos_with_names = {}
@@ -20,12 +28,16 @@ def get_repos_with_names(file_path='repos.txt'):
 def process_repos(output_file):
     repos_with_names = get_repos_with_names('repos.txt')  # Read repo URLs and folder names from file
     results = []
+    
+    # Create a new directory for this run
+    run_directory = create_run_directory()
 
     for repo_url, folder_name in repos_with_names.items():
-        clone_dir = os.path.join(os.getcwd(), folder_name)
+        # Create a unique folder for each repository inside the new run directory
+        clone_dir = os.path.join(run_directory, folder_name)
 
         # Clone the repository
-        print(f"Cloning or pulling {repo_url} into {folder_name}...")
+        print(f"Cloning or pulling {repo_url} into {clone_dir}...")
         clone_success, clone_msg = clone_or_pull_repo(repo_url, clone_dir)
 
         if not clone_success:
@@ -70,7 +82,6 @@ def process_repos(output_file):
             validation_summary = " ".join(html_results) + " " + " ".join(css_results)
         else:
             validation_summary = 'N/A'
-
 
         # Log results
         results.append({
