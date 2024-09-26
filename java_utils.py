@@ -2,8 +2,6 @@ import subprocess
 import os
 import re
 
-
-
 # Function to find the main class in Java files
 def find_main_class(repo_dir):
     main_class = None
@@ -30,13 +28,10 @@ def compile_java_non_main_repo(repo_dir):
         return False, f"Compilation failed: {e}"
 
 
-
-
 # Function to compile and run the Java main method
 def run_java_main(repo_dir, main_class_path):
     try:
         # Convert the main class path into a format for running with Java
-        rel_path = os.path.relpath(main_class_path, repo_dir)  # Get relative path
         class_name = os.path.basename(main_class_path).replace('.java', '')  # Convert path to class name
 
         # Get package name if declared in the Java file
@@ -61,20 +56,23 @@ def run_java_main(repo_dir, main_class_path):
         # Compile all .java files
         target_dir = os.path.join(repo_dir, 'target')
         os.makedirs(target_dir, exist_ok=True)
-        compile_command = f"javac -d {target_dir} " + " ".join(java_files)
+        
+        # Use absolute paths for the compile command
+        compile_command = f"javac -d \"{os.path.abspath(target_dir)}\" " + " ".join(f"\"{os.path.abspath(file)}\"" for file in java_files)
 
         try:
-            subprocess.check_call(compile_command, shell=True, cwd=repo_dir)
+            subprocess.check_call(compile_command, shell=True)
         except subprocess.CalledProcessError as compile_error:
             return False, f"Compilation failed for {main_class_path}: {compile_error}", False, f"Compilation failed so run was skipped"
 
-        run_command = f"java -cp {target_dir} {full_class_name}"
-        subprocess.check_call(run_command, shell=True, cwd=repo_dir)
+        # Run the compiled Java class
+        run_command = f"java -cp \"{os.path.abspath(target_dir)}\" {full_class_name}"
+        subprocess.check_call(run_command, shell=True)
 
-        return True, "Compiled successfully", True, "Main method ran successfully" 
+        return True, "Compiled successfully", True, "Main method ran successfully"
     except subprocess.CalledProcessError as run_error:
         return True, "Compiled successfully", False, f"Failed to run the main method: {run_error}"
-    
+
 
 # Function to run tests based on the detected language
 def run_java_tests(clone_dir, language):
@@ -101,10 +99,6 @@ def run_java_tests(clone_dir, language):
         return False, f"Test execution failed: {e}", "N/A"
 
 
-
-
-
-
 def java_process(clone_dir, language):
     main_class_path = find_main_class(clone_dir)
     if main_class_path:
@@ -113,8 +107,6 @@ def java_process(clone_dir, language):
         compile_success, compile_msg = compile_java_non_main_repo(clone_dir)
         run_success, run_msg = True, "Main method not found, so no run attempted"
 
-
     test_success, test_msg, test_summary = run_java_tests(clone_dir, language)
-
 
     return compile_success, compile_msg, run_success, run_msg, test_success, test_msg, test_summary

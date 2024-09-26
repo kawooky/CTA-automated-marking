@@ -1,5 +1,6 @@
 import os
 import time
+import pandas as pd  # Make sure to import pandas
 from language_utils import detect_language
 from java_utils import java_process
 from clone_utils import clone_or_pull_repo
@@ -24,8 +25,9 @@ def get_repos_with_names(file_path='repos.txt'):
                 repos_with_names[repo_url] = folder_name
     return repos_with_names
 
+
 # Main function to process repositories
-def process_repos(output_file):
+def process_repos(output_file, append=False):
     repos_with_names = get_repos_with_names('repos.txt')  # Read repo URLs and folder names from file
     results = []
     
@@ -97,8 +99,17 @@ def process_repos(output_file):
         })
 
     # Log all results to an Excel file
-    log_results_to_excel(results, output_file)
+    log_results_to_excel(results, output_file, append=append)
+
+# Asking whether to append or create new file
+append = input("Do you want to append results to an existing file? (y/n): ").strip().lower() == 'y'
+
+if append:
+    output_file = input("Enter the full path of the existing Excel file (e.g., 'C:/path/to/repo_processing_results.xlsx'): ").strip()
+else:
+    # Save results to 'repo_processing_results.xlsx' in the current directory
+    output_file = os.path.join(os.getcwd(), 'repo_processing_results.xlsx')
+    print(f"New file will be created at: {output_file}")
 
 # Example usage
-output_file = 'repo_processing_results.xlsx'
-process_repos(output_file)
+process_repos(output_file, append=append)
