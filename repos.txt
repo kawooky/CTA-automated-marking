@@ -1,5 +1,2 @@
 https://github.com/kawooky/CTA.HTML me
 https://github.com/kawooky/sql-syntax-errors sql
-https://github.com/kawooky/rock-paper-scissors sam
-https://github.com/kawooky/RPS-with-testing tom
-https://github.com/corecomtechacademy/loan-app-auto4 ben
