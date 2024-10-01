@@ -88,6 +88,7 @@ def log_results_to_excel(results, output_file, append=False):
             )
 
     # Convert results to DataFrames
+    results_df =pd.DataFrame(results)
     HTML_df = pd.DataFrame(html_css_results)
     SQL_df = pd.DataFrame(sql_results)
     Java_df = pd.DataFrame(java_results)
@@ -95,6 +96,7 @@ def log_results_to_excel(results, output_file, append=False):
 
     # Mapping of languages to corresponding sheet names
     sheet_name_mapping = {
+        'Results' : 'Results',
         'HTML/CSS': 'WebAssessment',
         'SQL': 'DatabaseAssessment',
         'Java': 'ProgrammingAssessment',
@@ -127,7 +129,7 @@ def log_results_to_excel(results, output_file, append=False):
     else:
         # If append is False, create a new Excel file with different sheets for each assessment category
         with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-            for lang_df, sheet_name in zip([HTML_df, SQL_df, Java_df, Java_Maven_df], 
+            for lang_df, sheet_name in zip([results_df, HTML_df, SQL_df, Java_df, Java_Maven_df], 
                                             sheet_name_mapping.values()):
                 if not lang_df.empty:  # Only process if DataFrame is not empty
                     lang_df.to_excel(writer, index=False, sheet_name=sheet_name)

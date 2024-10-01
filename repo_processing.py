@@ -10,6 +10,15 @@ from sql_utils import find_and_check_sql_files
 from git import Repo
 import tempfile  # Import tempfile for creating temporary directories
 
+# Function to check if the output file is open
+def is_file_open(file_path):
+    try:
+        # Try to open the file in exclusive mode
+        with open(file_path, 'a'):
+            return False
+    except IOError:
+        return True
+
 # Function to validate if a Git repository URL is reachable
 def is_valid_git_repo_url(repo_url):
     try:
@@ -66,6 +75,11 @@ def process_repos():
         # Save results to 'repo_processing_results.xlsx' in the current directory
         output_file = os.path.join(os.getcwd(), 'repo_processing_results.xlsx')
         print(f"New file will be created at: {output_file}")
+
+        # Check if the output file is open
+    if is_file_open(output_file):
+        print(f"The file '{output_file}' is currently open. Please close it and try again.")
+        return  # Exit the function if the file is open
 
     # Create a new directory for this run
     run_directory = create_run_directory()
