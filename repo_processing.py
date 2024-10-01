@@ -7,6 +7,20 @@ from clone_utils import clone_or_pull_repo
 from logging_utils import log_results_to_excel
 from html_css_utils import html_css_proccess
 from sql_utils import find_and_check_sql_files
+from git import Repo
+import tempfile  # Import tempfile for creating temporary directories
+
+# Function to validate if a Git repository URL is reachable
+def is_valid_git_repo_url(repo_url):
+    try:
+        # Create a unique temporary directory for validation
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Attempt to clone a shallow copy (only the latest commit)
+            Repo.clone_from(repo_url, temp_dir, depth=1)
+        return True
+    except Exception as e:
+        print(f"Invalid repository URL: {repo_url}. Error: {str(e)}")
+        return False
 
 # Create a new directory for each run
 def create_run_directory(base_dir='cloned_repos'):
@@ -25,12 +39,34 @@ def get_repos_with_names(file_path='repos.txt'):
                 repos_with_names[repo_url] = folder_name
     return repos_with_names
 
-
 # Main function to process repositories
-def process_repos(output_file, append=False):
+def process_repos():
     repos_with_names = get_repos_with_names('repos.txt')  # Read repo URLs and folder names from file
     results = []
     
+    # Validate all repository URLs before processing
+    print('Checking repo validity')
+    invalid_urls = [url for url in repos_with_names.keys() if not is_valid_git_repo_url(url)]
+    if invalid_urls:
+        print("The following repository URLs are invalid:")
+        for url in invalid_urls:
+            print(url)
+        return  # Exit if there are invalid URLs
+    else:
+        print('Respository check successful')
+
+
+
+    # Asking whether to append or create new file
+    append = input("Do you want to append results to an existing file? (y/n): ").strip().lower() == 'y'
+
+    if append:
+        output_file = input("Enter the full path of the existing Excel file (e.g., 'C:/path/to/repo_processing_results.xlsx'): ").strip()
+    else:
+        # Save results to 'repo_processing_results.xlsx' in the current directory
+        output_file = os.path.join(os.getcwd(), 'repo_processing_results.xlsx')
+        print(f"New file will be created at: {output_file}")
+
     # Create a new directory for this run
     run_directory = create_run_directory()
 
@@ -101,15 +137,6 @@ def process_repos(output_file, append=False):
     # Log all results to an Excel file
     log_results_to_excel(results, output_file, append=append)
 
-# Asking whether to append or create new file
-append = input("Do you want to append results to an existing file? (y/n): ").strip().lower() == 'y'
-
-if append:
-    output_file = input("Enter the full path of the existing Excel file (e.g., 'C:/path/to/repo_processing_results.xlsx'): ").strip()
-else:
-    # Save results to 'repo_processing_results.xlsx' in the current directory
-    output_file = os.path.join(os.getcwd(), 'repo_processing_results.xlsx')
-    print(f"New file will be created at: {output_file}")
 
 # Example usage
-process_repos(output_file, append=append)
+process_repos()
