@@ -1,6 +1,8 @@
 import os
 import time
-import pandas as pd  # Make sure to import pandas
+import pandas as pd
+import tkinter as tk  # For creating the file dialog
+from tkinter import filedialog  # For file dialog selection
 from language_utils import detect_language
 from java_utils import java_process
 from clone_utils import clone_or_pull_repo
@@ -8,12 +10,11 @@ from logging_utils import log_results_to_excel
 from html_css_utils import html_css_proccess
 from sql_utils import find_and_check_sql_files
 from git import Repo
-import tempfile  # Import tempfile for creating temporary directories
+import tempfile
 
 # Function to check if the output file is open
 def is_file_open(file_path):
     try:
-        # Try to open the file in exclusive mode
         with open(file_path, 'a'):
             return False
     except IOError:
@@ -22,9 +23,7 @@ def is_file_open(file_path):
 # Function to validate if a Git repository URL is reachable
 def is_valid_git_repo_url(repo_url):
     try:
-        # Create a unique temporary directory for validation
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Attempt to clone a shallow copy (only the latest commit)
             Repo.clone_from(repo_url, temp_dir, depth=1)
         return True
     except Exception as e:
@@ -33,11 +32,12 @@ def is_valid_git_repo_url(repo_url):
 
 # Create a new directory for each run
 def create_run_directory(base_dir='cloned_repos'):
-    timestamp = time.strftime('%Y%m%d-%H%M%S')  # Create a timestamp
-    run_dir = os.path.join(base_dir, timestamp)  # Combine base dir and timestamp
-    os.makedirs(run_dir, exist_ok=True)  # Create the directory if it doesn't exist
+    timestamp = time.strftime('%Y%m%d-%H%M%S')  
+    run_dir = os.path.join(base_dir, timestamp)  
+    os.makedirs(run_dir, exist_ok=True)  
     return run_dir
 
+# Function to retrieve repository URLs and folder names
 def get_repos_with_names(file_path='repos.txt'):
     repos_with_names = {}
     with open(file_path, 'r') as file:
@@ -48,11 +48,21 @@ def get_repos_with_names(file_path='repos.txt'):
                 repos_with_names[repo_url] = folder_name
     return repos_with_names
 
+# Function to open a file dialog for selecting an Excel file
+def select_excel_file():
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    file_path = filedialog.askopenfilename(
+        filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+        title="Select Excel File"
+    )
+    return file_path
+
 # Main function to process repositories
 def process_repos():
-    repos_with_names = get_repos_with_names('repos.txt')  # Read repo URLs and folder names from file
+    repos_with_names = get_repos_with_names('repos.txt')  
     results = []
-    
+
     # Validate all repository URLs before processing
     print('Checking repo validity')
     invalid_urls = [url for url in repos_with_names.keys() if not is_valid_git_repo_url(url)]
@@ -60,26 +70,29 @@ def process_repos():
         print("The following repository URLs are invalid:")
         for url in invalid_urls:
             print(url)
-        return  # Exit if there are invalid URLs
+        return  
     else:
-        print('Respository check successful')
+        print('Repository check successful')
 
-
-
-    # Asking whether to append or create new file
+    # Ask whether to append or create a new file
     append = input("Do you want to append results to an existing file? (y/n): ").strip().lower() == 'y'
 
     if append:
-        output_file = input("Enter the full path of the existing Excel file (e.g., 'C:/path/to/repo_processing_results.xlsx'): ").strip()
+        # Use file dialog to select an existing Excel file
+        print("Please select the Excel file to append results:")
+        output_file = select_excel_file()
+        if not output_file:
+            print("No file selected. Exiting...")
+            return
     else:
         # Save results to 'repo_processing_results.xlsx' in the current directory
         output_file = os.path.join(os.getcwd(), 'repo_processing_results.xlsx')
         print(f"New file will be created at: {output_file}")
 
-        # Check if the output file is open
+    # Check if the output file is open
     if is_file_open(output_file):
         print(f"The file '{output_file}' is currently open. Please close it and try again.")
-        return  # Exit the function if the file is open
+        return  
 
     # Create a new directory for this run
     run_directory = create_run_directory()
@@ -113,7 +126,7 @@ def process_repos():
         # Initialize validation messages as empty
         sql_check_msg, html_results, css_results = "", "", ""
 
-        # Compile the code
+        # Compile the code based on language
         if language == 'Java' or language == 'Java-Maven':
             compile_success, compile_msg, run_success, run_msg, test_success, test_msg, test_summary = java_process(clone_dir, language)
         elif language == 'HTML/CSS':
@@ -150,7 +163,6 @@ def process_repos():
 
     # Log all results to an Excel file
     log_results_to_excel(results, output_file, append=append)
-
 
 # Example usage
 process_repos()
