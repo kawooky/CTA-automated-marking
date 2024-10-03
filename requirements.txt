@@ -1,4 +1,6 @@
-sqlparse
-pandas
 gitpython
 requests
+pandas
+openpyxl
+sqlparse
+setuptools
