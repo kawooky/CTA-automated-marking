@@ -126,6 +126,10 @@ def log_results_to_excel(results, output_file, append=False):
                     else:
                         # If the sheet doesn't exist, create a new one and write the DataFrame
                         lang_df.to_excel(writer, index=False, sheet_name=sheet_name)
+
+        # Create a new Excel file with results so more info can be found on results.
+        with pd.ExcelWriter(os.path.join(os.getcwd(), 'repo_processing_results.xlsx'), engine='openpyxl') as writer:
+            results_df.to_excel(writer, index=False, sheet_name="Results")
     else:
         # If append is False, create a new Excel file with different sheets for each assessment category
         with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
